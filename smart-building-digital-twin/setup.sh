@@ -410,7 +410,7 @@ fi
 success "Found ${#SCENES[@]} scene(s)"
 
 # Download videos on demand from edge-ai-resources
-RESOURCES_BASE_URL="${RESOURCES_BASE_URL:-https://github.com/open-edge-platform/edge-ai-resources/raw/refs/heads/main}"
+RESOURCES_BASE_URL="${RESOURCES_BASE_URL:-https://github.com/open-edge-platform/edge-ai-resources/raw/a02ffce3da072432f3d06fc073a8eed1d220ec62}"
 SCENE_CAMERA_COUNT="${SCENE_CAMERA_COUNT:-7}"
 
 # A Git LFS pointer is a tiny text file, not a playable video
