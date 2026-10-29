@@ -427,7 +427,7 @@ for scene in "${SCENES[@]}"; do
             continue
         fi
         info "Downloading $video..."
-        curl -fL --retry 3 -s "$RESOURCES_BASE_URL/videos/smart-building-${scene_lower}-cam-$i.ts" -o "$video.tmp" \
+        curl -fL --retry 3 -s "$RESOURCES_BASE_URL/videos/cam-$i.ts" -o "$video.tmp" \
             && mv "$video.tmp" "$video" \
             || { rm -f "$video.tmp"; error "Failed to download $video from $RESOURCES_BASE_URL"; }
     done
