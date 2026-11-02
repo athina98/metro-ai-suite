@@ -463,9 +463,21 @@ if [ ! -f ".env" ]; then
     touch .env
 fi
 
+# HOST_IP: primary IPv4 of this machine (override by exporting HOST_IP)
+CURRENT_HOST_IP="${HOST_IP:-}"
+if [ -z "$CURRENT_HOST_IP" ]; then
+    CURRENT_HOST_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src"){print $(i+1); exit}}')
+fi
+if [ -z "$CURRENT_HOST_IP" ]; then
+    CURRENT_HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+fi
+
 CURRENT_PUBLIC_HOSTNAME="${PUBLIC_HOSTNAME:-}"
 if [ -z "$CURRENT_PUBLIC_HOSTNAME" ]; then
     CURRENT_PUBLIC_HOSTNAME=$(read_env_var "PUBLIC_HOSTNAME")
+fi
+if [ -z "$CURRENT_PUBLIC_HOSTNAME" ]; then
+    CURRENT_PUBLIC_HOSTNAME="$CURRENT_HOST_IP"
 fi
 if [ -z "$CURRENT_PUBLIC_HOSTNAME" ]; then
     CURRENT_PUBLIC_HOSTNAME=$(hostname -f 2>/dev/null || hostname -s 2>/dev/null || true)
@@ -609,12 +621,14 @@ delete_env_var "INTERNAL_WEB_HOST"
 delete_env_var "INTERNAL_AUTOCALIBRATION_HOST"
 upsert_env_var "DATABASE_PASSWORD" "$CURRENT_DATABASE_PASSWORD"
 upsert_env_var "SCENESCAPE_IMAGE_TAG" "2026.2.0"
+upsert_env_var "DLSTREAMER_PIPELINE_SERVER_IMAGE" "docker.io/intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24"
 upsert_env_var "SCENESCAPE_DIR" "$SCENESCAPE_DIR_INPUT"
 upsert_env_var "PRIMARY_SCENE" "${SCENES[0]}"
 upsert_env_var "PRIMARY_DATASET" "$PRIMARY_DATASET"
 upsert_env_var "MODEL_NAME" "$MODEL_NAME"
 upsert_env_var "DETECTION_DEVICE" "$DEFAULT_DEVICE"
 upsert_env_var "INFERENCE_DEVICE" "$DEFAULT_DEVICE"
+upsert_env_var "HOST_IP" "$CURRENT_HOST_IP"
 upsert_env_var "PUBLIC_HOSTNAME" "$CURRENT_PUBLIC_HOSTNAME"
 upsert_env_var "API_BASE_URL" "$CURRENT_API_BASE_URL"
 upsert_env_var "SCENESCAPE_UI_URL" "$CURRENT_SCENESCAPE_UI_URL"
@@ -635,7 +649,7 @@ success "Environment file ready"
 if [ ! -f "certs/scenescape-ca.pem" ] || [ ! -f "certs/django/secrets.py" ] || [ ! -f "certs/scenescape-autocalibration.crt" ] || [ ! -f "certs/scenescape-autocalibration.key" ] || [ ! -f "certs/calibration.auth" ]; then
     info "Generating TLS certificates and secrets..."
     chmod +x scripts/generate-certs.sh
-    DATABASE_PASSWORD="$CURRENT_DATABASE_PASSWORD" ./scripts/generate-certs.sh
+    HOST_IP="$CURRENT_HOST_IP" DATABASE_PASSWORD="$CURRENT_DATABASE_PASSWORD" ./scripts/generate-certs.sh
     success "Certificates and secrets generated"
 else
     if ! grep -q "^DATABASE_PASSWORD='${CURRENT_DATABASE_PASSWORD}'$" certs/django/secrets.py; then

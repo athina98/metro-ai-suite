@@ -65,11 +65,12 @@ STATIONARY_SPEED    = 0.08   # m/s — slower than this = stationary
 INERT_GHOST_RECENT_N = 5     # recent inert samples to inspect for sticky moving ghosts
 INERT_GHOST_FREEZE_M = 0.10  # meters — near-zero position spread with non-zero speed is untrusted
 INERT_GHOST_SPEED_M = 0.12   # m/s — moving faster than this while spatially frozen is contradictory
+CRED_LOOKBACK_N     = 30     # recent track entries searched for a badge/face read at tripwire crossing
 POSTURE_WINDOW      = 10     # last N bounding-box samples for majority vote
 FALL_MAX_SPEED_MS   = 0.35   # m/s — allow a small amount of motion-estimate jitter during fall confirmation
 FALL_CONFIRM_S      = 2.0    # seconds — fall-like posture must persist before alerting
-FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright", "compact", "wide"}
-FALL_SUSTAIN_POSTURES = {"horizontal", "wide"}
+FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright"}  # standing before the fall; sitting/crouching is compact/wide
+FALL_SUSTAIN_POSTURES = {"horizontal"}  # "wide" is a seated/squat box, not prone
 FALL_RECOVERY_POSTURES = {"upright", "partially upright", "compact"}
 GHOST_FREEZE_M      = 0.05   # meters — position spread below this = ghost track
 GHOST_RECENT_N      = 30     # number of recent entries to inspect for ghost detection
@@ -1128,13 +1129,17 @@ class Narrator:
         # If the field is absent (Scenescape version difference), fall back to the
         # latest entry in our track cache which mirrors the regulated topic state.
         sensors = obj.get("sensors") or {}
-        if not sensors:
+        if not self._cred_annot(sensors):
           uid = obj.get("id", "")
           with self._cache._lock:
             trk = self._cache._tracks.get(uid, {})
             entries = trk.get("entries")
             if entries:
-              sensors = entries[-1].get("sensors", {})
+              # Badge/face reads can lag the crossing; use the latest credential seen recently
+              for e in reversed(list(entries)[-CRED_LOOKBACK_N:]):
+                if self._cred_annot(e.get("sensors", {})):
+                  sensors = e["sensors"]
+                  break
         cred = self._cred_annot(sensors)
         self._process_badge_security(
           sensors,
