@@ -70,6 +70,7 @@ POSTURE_WINDOW      = 10     # last N bounding-box samples for majority vote
 FALL_MAX_SPEED_MS   = 0.35   # m/s — allow a small amount of motion-estimate jitter during fall confirmation
 FALL_CONFIRM_S      = 2.0    # seconds — fall-like posture must persist before alerting
 FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright"}  # standing before the fall; sitting/crouching is compact/wide
+FALL_UPRIGHT_WINDOW_S = 5.0  # a fall may pass through wide/compact; accept upright seen this recently
 FALL_SUSTAIN_POSTURES = {"horizontal"}  # "wide" is a seated/squat box, not prone
 FALL_RECOVERY_POSTURES = {"upright", "partially upright", "compact"}
 GHOST_FREEZE_M      = 0.05   # meters — position spread below this = ghost track
@@ -195,6 +196,8 @@ class Narrator:
     self._fall_candidate_prev_posture: dict[str, str | None] = {}
     # Track uids already alerted for the current horizontal low-speed episode
     self._fall_alerted: set[str] = set()
+    # Track uid → last time an upright posture was observed
+    self._last_upright: dict[str, float] = {}
 
     # Loop count mirror (to detect resets)
     self._last_loop = 0
@@ -853,6 +856,10 @@ class Narrator:
     speed = person_state["speed"]
     prev_p = self._prev_posture.get(uid)
     self._prev_posture[uid] = posture
+    if posture in FALL_TRIGGER_PREVIOUS_POSTURES:
+      self._last_upright[uid] = now
+    elif now - self._last_upright.get(uid, float("-inf")) <= FALL_UPRIGHT_WINDOW_S:
+      prev_p = "upright"
 
     is_fall_candidate = (
       posture == "horizontal"
@@ -944,6 +951,7 @@ class Narrator:
       self._fall_candidate_since.clear()
       self._fall_candidate_prev_posture.clear()
       self._fall_alerted.clear()
+      self._last_upright.clear()
       self._window.clear()
       self._badge_face_baseline.clear()
       self._badge_switch_alerted.clear()
