@@ -466,6 +466,9 @@ fi
 # HOST_IP: primary IPv4 of this machine (override by exporting HOST_IP)
 CURRENT_HOST_IP="${HOST_IP:-}"
 if [ -z "$CURRENT_HOST_IP" ]; then
+    CURRENT_HOST_IP=$(read_env_var "HOST_IP")
+fi
+if [ -z "$CURRENT_HOST_IP" ]; then
     CURRENT_HOST_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src"){print $(i+1); exit}}')
 fi
 if [ -z "$CURRENT_HOST_IP" ]; then

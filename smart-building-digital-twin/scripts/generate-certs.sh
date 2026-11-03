@@ -23,6 +23,12 @@ generate_server_cert() {
   local crt_path="$4"
   local san_config
   san_config=$(mktemp)
+  san_host_entry=""
+  if [[ "${HOST_IP:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    san_host_entry="IP.2 = ${HOST_IP}"
+  elif [ -n "${HOST_IP:-}" ] && [ "$HOST_IP" != "localhost" ]; then
+    san_host_entry="DNS.4 = ${HOST_IP}"
+  fi
 
   cat > "$san_config" <<EOF
 [req]
@@ -48,7 +54,7 @@ DNS.1 = ${host_short}.scenescape.intel.com
 DNS.2 = ${host_short}
 DNS.3 = localhost
 IP.1 = 127.0.0.1
-${HOST_IP:+IP.2 = $HOST_IP}
+${san_host_entry}
 EOF
 
   openssl genrsa -out "$key_path" 2048 2>/dev/null
