@@ -408,13 +408,13 @@ fi
 if [ -n "$REQUESTED_DEVICE" ]; then
     REQUESTED_DEVICE=$(echo "$REQUESTED_DEVICE" | tr '[:lower:]' '[:upper:]')
     case "$REQUESTED_DEVICE" in
-        GPU|CPU)
+        GPU|CPU|NPU)
             if [ "$REQUESTED_DEVICE" != "$DEFAULT_DEVICE" ]; then
                 info "Using DETECTION_DEVICE=$REQUESTED_DEVICE (overrides detected $DEFAULT_DEVICE)"
             fi
             DEFAULT_DEVICE="$REQUESTED_DEVICE"
             ;;
-        *) warning "Ignoring unsupported DETECTION_DEVICE='$REQUESTED_DEVICE' (use GPU or CPU)" ;;
+        *) warning "Unsupported DETECTION_DEVICE='$REQUESTED_DEVICE' (use GPU, CPU or NPU); falling back to detected device: $DEFAULT_DEVICE" ;;
     esac
 fi
 
