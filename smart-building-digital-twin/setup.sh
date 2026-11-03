@@ -30,6 +30,13 @@ read_env_var() {
     grep -E "^${key}=" .env | head -n1 | cut -d'=' -f2-
 }
 
+# Read a value from .env.example (trimmed); used as defaults before .env exists
+read_example_var() {
+    local key="$1"
+    [ -f ".env.example" ] || return 0
+    grep -E "^${key}=" .env.example | head -n1 | cut -d'=' -f2- | tr -d '[:space:]'
+}
+
 json_truthy() {
     jq -e '
         if type == "object" then
@@ -338,6 +345,7 @@ info "Locating DLStreamer GST plugins..."
 SCENESCAPE_PLUGINS_DIR="$SCRIPT_DIR/generated/scenescape-plugins"
 # SCENESCAPE_PLUGINS_REF selects the branch or tag for the gstplugins sparse clone independently of the image SCENESCAPE_IMAGE_TAG
 SCENESCAPE_PLUGINS_REF="${SCENESCAPE_PLUGINS_REF:-$(grep -E '^SCENESCAPE_PLUGINS_REF=' .env 2>/dev/null | head -n1 | cut -d'=' -f2-)}"
+SCENESCAPE_PLUGINS_REF="${SCENESCAPE_PLUGINS_REF:-$(read_example_var "SCENESCAPE_PLUGINS_REF")}"
 SCENESCAPE_PLUGINS_REF="${SCENESCAPE_PLUGINS_REF:-2026.2.0}"
 
 scenescape_valid() {
@@ -390,6 +398,24 @@ if lspci | grep -i "VGA.*Intel" >/dev/null 2>&1; then
 else
     warning "No Intel GPU detected - will use CPU inference"
     DEFAULT_DEVICE="CPU"
+fi
+
+# Manual override: exported DETECTION_DEVICE, else DETECTION_DEVICE in .env.example
+REQUESTED_DEVICE="${DETECTION_DEVICE:-}"
+if [ -z "$REQUESTED_DEVICE" ] && [ -f ".env.example" ]; then
+    REQUESTED_DEVICE=$(read_example_var "DETECTION_DEVICE")
+fi
+if [ -n "$REQUESTED_DEVICE" ]; then
+    REQUESTED_DEVICE=$(echo "$REQUESTED_DEVICE" | tr '[:lower:]' '[:upper:]')
+    case "$REQUESTED_DEVICE" in
+        GPU|CPU)
+            if [ "$REQUESTED_DEVICE" != "$DEFAULT_DEVICE" ]; then
+                info "Using DETECTION_DEVICE=$REQUESTED_DEVICE (overrides detected $DEFAULT_DEVICE)"
+            fi
+            DEFAULT_DEVICE="$REQUESTED_DEVICE"
+            ;;
+        *) warning "Ignoring unsupported DETECTION_DEVICE='$REQUESTED_DEVICE' (use GPU or CPU)" ;;
+    esac
 fi
 
 # Discover scenes
@@ -460,7 +486,12 @@ done
 # Create/update .env file
 if [ ! -f ".env" ]; then
     info "Creating environment configuration..."
-    touch .env
+    if [ -f ".env.example" ]; then
+        # Seed from .env.example, skipping the placeholder password
+        grep -vE '^(#|[[:space:]]*$|DATABASE_PASSWORD=)' .env.example | sed 's/[[:space:]]*$//' > .env
+    else
+        touch .env
+    fi
 fi
 
 # HOST_IP: primary IPv4 of this machine (override by exporting HOST_IP)
@@ -595,6 +626,7 @@ echo ""
 # Determine defaults for generated fields
 PRIMARY_DATASET=$(echo "${SCENES[0]}" | tr '[:upper:]' '[:lower:]')
 MODEL_NAME="${MODEL_NAME:-$(read_env_var "MODEL_NAME")}"
+MODEL_NAME="${MODEL_NAME:-$(read_example_var "MODEL_NAME")}"
 MODEL_NAME="${MODEL_NAME:-smartbuilding-int8}"
 
 # Upsert helper for .env key-value pairs
