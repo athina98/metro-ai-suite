@@ -1,5 +1,21 @@
 # System Requirements
 
+This section provides the hardware, software, and platform requirements to set up and
+run the application.
+
+## Supported Platforms
+
+**Operating Systems**
+
+- Ubuntu 24.04 LTS
+
+## Minimum Requirements
+
+| **Component**       | **Minimum Requirement** |
+|---------------------|-------------------------|
+| **Processor**       | Intel® Core™ Ultra Processors Series 1 and above |
+| **GPU/Accelerator** | Integrated GPU (recommended; CPU fallback supported) |
+
 ## Hardware Requirements
 
 - Intel® GPU recommended; CPU fallback supported
