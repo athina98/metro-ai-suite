@@ -49,7 +49,7 @@ from track_cache import TrackCache, TrackSubscriber, REG_TOPIC, _now, _iso, SCEN
 from scene_config import (
   REGION_NAMES, FURNITURE_REGIONS, INERT_CATEGORIES, SENSOR_NAMES, TRIPWIRE_NAMES,
   CHECKPOINT_TRIPWIRE, ENTRY_TRIPWIRE,
-  region_name, sensor_name, tripwire_name, near_furniture,
+  region_name, sensor_name, tripwire_name,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,10 +159,7 @@ def _smooth_posture(bounds_history: list[dict]) -> str:
   ]
   if not camera_votes:
     return "unknown"
-  votes = Counter(camera_votes).most_common()
-  # On a tie, prefer a non-fall posture so one disagreeing camera can't trigger a fall
-  tied = [label for label, c in votes if c == votes[0][1]]
-  return next((l for l in tied if l not in FALL_SUSTAIN_POSTURES), tied[0])
+  return Counter(camera_votes).most_common(1)[0][0]
 
 
 def _speed(vx: float, vy: float) -> float:
@@ -441,10 +438,7 @@ class Narrator:
       "posture": posture,
       "cam_str": self._cam_str(latest.get("cameras", [])),
       "pos": self._pos_str(latest["x"], latest["y"]),
-      "in_furniture": (
-        any(region_name(r) in FURNITURE_REGIONS for r in latest["regions"])
-        or near_furniture(latest["x"], latest["y"])
-      ),
+      "in_furniture": any(region_name(r) in FURNITURE_REGIONS for r in latest["regions"]),
     }
 
   def _clear_inert_state(self, uid: str) -> None:
