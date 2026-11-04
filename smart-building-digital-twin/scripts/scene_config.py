@@ -10,6 +10,7 @@ scene by human-readable names so it remains valid across reinstalls.
 
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
 
 SCENE_NAME = "Showcase"
@@ -17,6 +18,8 @@ SCENE_NAME = "Showcase"
 # ── Regions ────────────────────────────────────────────────────────────────────
 # Regions where horizontal posture is expected (suppresses fall alert)
 FURNITURE_REGIONS = {"Couch"}
+# Seated people near a couch edge can be tracked just outside its polygon
+FURNITURE_MARGIN_M = 1.0
 
 # Object categories that should not move on their own. When one of these is
 # moving, the narrator infers it is attached to the nearest non-inert actor.
@@ -68,6 +71,28 @@ _tripwires_by_name: dict = _uuids.get("tripwires", {})  # name → uuid
 
 REGION_NAMES   = {uid: name for name, uid in _regions_by_name.items()}    # uuid → name
 TRIPWIRE_NAMES = {uid: name for name, uid in _tripwires_by_name.items()}  # uuid → name
+
+
+@lru_cache(maxsize=1)
+def _furniture_boxes() -> tuple:
+  """Bounding boxes (min_x, max_x, min_y, max_y) of furniture regions in the scene file."""
+  scene_file = Path(__file__).parent.parent / "config" / "scenes" / f"{SCENE_NAME}.json"
+  try:
+    regions = json.loads(scene_file.read_text()).get("regions", [])
+  except (OSError, ValueError):
+    return ()
+  boxes = []
+  for r in regions:
+    if r.get("name") in FURNITURE_REGIONS and r.get("points"):
+      xs, ys = zip(*r["points"])
+      boxes.append((min(xs), max(xs), min(ys), max(ys)))
+  return tuple(boxes)
+
+
+def near_furniture(x: float, y: float) -> bool:
+  """True if (x, y) is within FURNITURE_MARGIN_M of a furniture region's bounding box."""
+  m = FURNITURE_MARGIN_M
+  return any(x0 - m <= x <= x1 + m and y0 - m <= y <= y1 + m for x0, x1, y0, y1 in _furniture_boxes())
 
 
 def region_name(uid: str) -> str:

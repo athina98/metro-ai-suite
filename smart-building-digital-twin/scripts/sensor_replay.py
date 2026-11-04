@@ -39,7 +39,8 @@ PUBLISH_INTERVAL_S = 0.02
 
 class SensorReplay:
   def __init__(self, sensor_file, broker_host, broker_port, ca_cert, tls_insecure,
-                 broker_auth, light_sensor_id, sync_camera, timestamp_offset=0.0):
+                 broker_auth, light_sensor_id, sync_camera, timestamp_offset=0.0,
+                 start_in_loop1=True):
     with open(sensor_file) as f:
       data = json.load(f)
     self.messages = sorted(data['messages'], key=lambda x: x['timestamp'])
@@ -56,7 +57,8 @@ class SensorReplay:
     self.loop_start_wall = None
     self.scene_dark = True
     self.consec_empty = 0
-    self._seen_dark_boundary = False
+    # Treat the first live frame as loop 1 start (video must begin when replay starts)
+    self._seen_dark_boundary = start_in_loop1
     self.next_index = 0
     self.loop_count = 0
     self.messages_sent = 0
@@ -204,6 +206,10 @@ def main():
                         'Use this to compensate for the constant delta between the first '
                         'post-gap camera detection and the desired replay start point '
                         '(default: 0.0).')
+  p.add_argument('--wait-for-loop-boundary', action='store_true',
+                   help='Skip the first partial loop and start replaying sensors only after a dark '
+                        'loop boundary. By default the first live camera frame is treated as the '
+                        'start of loop 1, which assumes the video starts together with the replay.')
   p.add_argument('--verbose', action='store_true')
   args = p.parse_args()
 
@@ -220,6 +226,7 @@ def main():
     light_sensor_id=args.light_sensor_id,
     sync_camera=args.sync_camera,
     timestamp_offset=args.timestamp_offset,
+    start_in_loop1=not args.wait_for_loop_boundary,
   ).run()
 
 

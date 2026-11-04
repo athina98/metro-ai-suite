@@ -49,7 +49,7 @@ from track_cache import TrackCache, TrackSubscriber, REG_TOPIC, _now, _iso, SCEN
 from scene_config import (
   REGION_NAMES, FURNITURE_REGIONS, INERT_CATEGORIES, SENSOR_NAMES, TRIPWIRE_NAMES,
   CHECKPOINT_TRIPWIRE, ENTRY_TRIPWIRE,
-  region_name, sensor_name, tripwire_name,
+  region_name, sensor_name, tripwire_name, near_furniture,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,10 @@ def _smooth_posture(bounds_history: list[dict]) -> str:
   ]
   if not camera_votes:
     return "unknown"
-  return Counter(camera_votes).most_common(1)[0][0]
+  votes = Counter(camera_votes).most_common()
+  # On a tie, prefer a non-fall posture so one disagreeing camera can't trigger a fall
+  tied = [label for label, c in votes if c == votes[0][1]]
+  return next((l for l in tied if l not in FALL_SUSTAIN_POSTURES), tied[0])
 
 
 def _speed(vx: float, vy: float) -> float:
@@ -438,7 +441,10 @@ class Narrator:
       "posture": posture,
       "cam_str": self._cam_str(latest.get("cameras", [])),
       "pos": self._pos_str(latest["x"], latest["y"]),
-      "in_furniture": any(region_name(r) in FURNITURE_REGIONS for r in latest["regions"]),
+      "in_furniture": (
+        any(region_name(r) in FURNITURE_REGIONS for r in latest["regions"])
+        or near_furniture(latest["x"], latest["y"])
+      ),
     }
 
   def _clear_inert_state(self, uid: str) -> None:
@@ -1104,6 +1110,7 @@ class Narrator:
 
   def on_tripwire(self, payload: dict):
     """Process a tripwire crossing event."""
+    self._sync_loop_state()
     tw_name = payload.get("tripwire_name") or tripwire_name(payload.get("tripwire_id",""))
     ts      = payload.get("timestamp", "")
     relt    = self._ts_str(ts)
@@ -1167,6 +1174,7 @@ class Narrator:
 
   def on_region_event(self, payload: dict):
     """Process a region enter/exit count event."""
+    self._sync_loop_state()
     rname = payload.get("region_name") or region_name(payload.get("region_id",""))
     ts    = payload.get("timestamp", "")
     relt  = self._ts_str(ts)
