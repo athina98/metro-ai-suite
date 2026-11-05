@@ -79,6 +79,8 @@ ABANDONMENT_DIST_M  = 4.0    # meters — former companion beyond this = abandon
 SWITCH_MATCH_WINDOW_S = 45.0  # look back this long for reciprocal swaps across ticks
 SWITCH_MAX_SEPARATION_M = 3.0  # reciprocal switch candidates must occur near each other
 STOLEN_MIN_PREV_COMPANION_S = 3.0  # previous companion must have been established, not just a brief walk-by
+HANDOVER_TOGETHER_M = 3.0     # meters — giver and receiver this close afterwards = handover, not theft
+HANDOVER_TOGETHER_S = 5.0     # seconds they must stay together before reporting a handover
 STOLEN_MIN_NEW_COMPANION_S = 0.75  # new companion must stay attached briefly before theft is credible
 
 # Camera frame dimensions (pixels) — derived from intrinsics cx/cy in Showcase.json
@@ -236,6 +238,7 @@ class Narrator:
     self._stolen_candidate_listeners: list = []
     # (luggage_uid, new_companion_uid) pairs already emitted as stolen candidates this loop.
     self._stolen_candidate_emitted: set[tuple[str, str]] = set()
+    self._handover_since: dict[tuple, float] = {}
     # State listeners — called with a dict on every tick
     self._state_listeners: list = []
 
@@ -796,13 +799,21 @@ class Narrator:
         continue
       stolen_key = (uid, new)
       if stolen_key not in self._luggage_stolen_alerted:
+        together = (
+          prev in person_positions and new in person_positions
+          and math.dist(person_positions[prev][:2], person_positions[new][:2]) < HANDOVER_TOGETHER_M
+        )
+        if not together:
+          self._handover_since.pop(stolen_key, None)
+        elif now - self._handover_since.setdefault(stolen_key, now) < HANDOVER_TOGETHER_S:
+          continue
         cams_l = sorted(latest.get("cameras", []))
         cam_l = self._cam_str(cams_l)
         old_label = self._person_label(prev)
         old_cred = self._cred_annot(person_positions[prev][2]) if prev in person_positions else ""
         new_cred = self._cred_annot(person_positions[new][2]) if new in person_positions else ""
         self._emit_alert(
-          f"[ALERT {relt}]  luggage stolen: {label}\n"
+          f"[ALERT {relt}]  luggage {'switch' if together else 'stolen'}: {label}\n"
           f"  companion changed from {old_label}{old_cred} → {self._person_label(new)}{new_cred}"
           f"{self._pos_str(latest['x'], latest['y'])}{cam_l} [{rs}]"
         )
@@ -952,6 +963,7 @@ class Narrator:
       self._luggage_switch_alerted.clear()
       self._luggage_stolen_alerted.clear()
       self._stolen_candidate_emitted.clear()
+      self._handover_since.clear()
       self._last_companion.clear()
       self._last_companion_started.clear()
       self._abandonment_alerted.clear()
