@@ -9,13 +9,6 @@ run the application.
 
 - Ubuntu 24.04 LTS
 
-## Validated Platforms
-
-| Product / Family                               | CPU | iGPU | NPU |
-|------------------------------------------------|-----|------|-----|
-| Intel® Core™ Ultra Processors (Series 3, 2, 1) | ✓   | ✓    | ✓   |
-| Intel® Core™ Processors Series 3               | ✓   | ✓    | ✓   |
-
 ## Minimum Requirements
 
 | **Component**       | **Minimum Requirement** |
@@ -24,6 +17,13 @@ run the application.
 | **GPU/Accelerator** | Integrated GPU (recommended; CPU fallback supported) |
 | **Memory**          | 32 GB                   |
 | **Disk Space**      | 128 GB SSD              |
+
+## Validated Platforms
+
+| Product / Family                               | CPU | iGPU | NPU |
+|------------------------------------------------|-----|------|-----|
+| Intel® Core™ Ultra Processors (Series 3, 2, 1) | ✓   | ✓    | ✓   |
+| Intel® Core™ Processors Series 3               | ✓   | ✓    | ✓   |
 
 ## GPU and Telemetry Setup
 
