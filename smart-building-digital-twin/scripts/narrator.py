@@ -803,10 +803,14 @@ class Narrator:
           prev in person_positions and new in person_positions
           and math.dist(person_positions[prev][:2], person_positions[new][:2]) < HANDOVER_TOGETHER_M
         )
-        if not together:
-          self._handover_since.pop(stolen_key, None)
-        elif now - self._handover_since.setdefault(stolen_key, now) < HANDOVER_TOGETHER_S:
-          continue
+        # Latch: once giver and receiver were seen together, a later separation
+        # (the giver walking off after the handover) must not downgrade it to theft.
+        if together:
+          self._handover_since.setdefault(stolen_key, now)
+        if stolen_key in self._handover_since:
+          together = True
+          if now - self._handover_since[stolen_key] < HANDOVER_TOGETHER_S:
+            continue
         cams_l = sorted(latest.get("cameras", []))
         cam_l = self._cam_str(cams_l)
         old_label = self._person_label(prev)
