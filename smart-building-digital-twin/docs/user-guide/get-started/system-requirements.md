@@ -25,7 +25,7 @@ run the application.
 | **Memory**          | 32 GB                   |
 | **Disk Space**      | 128 GB SSD              |
 
-## Hardware Requirements
+## GPU and Telemetry Setup
 
 - An Intel® GPU is recommended. If none is available, the application runs on the CPU.
 - On Panther Lake systems, install `xpu-smi` on the host before running `./setup.sh`
