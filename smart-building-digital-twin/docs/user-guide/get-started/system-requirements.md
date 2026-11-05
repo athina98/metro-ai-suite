@@ -22,6 +22,8 @@ run the application.
 |---------------------|-------------------------|
 | **Processor**       | Intel® Core™ Ultra Processor (Series 1 and above) or Intel® Core™ Processor Series 3, with Intel® HD Graphics |
 | **GPU/Accelerator** | Integrated GPU (recommended; CPU fallback supported) |
+| **Memory**          | 32 GB                   |
+| **Disk Space**      | 128 GB SSD              |
 
 ## Hardware Requirements
 
