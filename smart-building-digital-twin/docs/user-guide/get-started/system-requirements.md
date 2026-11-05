@@ -9,6 +9,13 @@ run the application.
 
 - Ubuntu 24.04 LTS
 
+## Validated Platforms
+
+| Product / Family                               | CPU | iGPU | NPU |
+|------------------------------------------------|-----|------|-----|
+| Intel® Core™ Ultra Processors (Series 3, 2, 1) | ✓   | ✓    | ✓   |
+| Intel® Core™ Processors Series 3               | ✓   | ✓    | ✓   |
+
 ## Minimum Requirements
 
 | **Component**       | **Minimum Requirement** |
