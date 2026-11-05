@@ -224,6 +224,8 @@ class Narrator:
     self._last_companion: dict[str, str] = {}
     # Luggage uids already alerted as abandoned (active companion walked away)
     self._abandonment_alerted: set[str] = set()
+    # Luggage uid → person it was abandoned by; a pickup from them is a handover (switch)
+    self._abandoned_by: dict[str, str] = {}
     # Recent confirmed transitions for cross-tick switch matching:
     # luggage_uid → (from_uid, to_uid, confirmed_wall_t, label, latest_entry, region_str)
     self._recent_transitions: dict[str, tuple] = {}
@@ -686,6 +688,7 @@ class Narrator:
               f"{self._pos_str(latest['x'], latest['y'])}{cam_ab} [{region_str}]"
             )
             self._abandonment_alerted.add(uid)
+            self._abandoned_by[uid] = last_cmp
 
         if uid not in self._luggage_alone_since:
           self._luggage_alone_since[uid] = now
@@ -693,14 +696,20 @@ class Narrator:
         if alone_s >= UNATTENDED_THRESH_S and uid not in self._unattended_alerted:
           cams_a = sorted(latest.get("cameras", []))
           cam_a = self._cam_str(cams_a)
+          last_owner = self._last_companion.get(uid)
+          owner_str = ""
+          if last_owner:
+            owner_cred = self._cred_annot(person_positions[last_owner][2]) if last_owner in person_positions else ""
+            owner_str = f" (last with {self._person_label(last_owner)}{owner_cred})"
           self._emit_alert(
             f"[ALERT {relt}]  unattended luggage: {label}\n"
-            f"  no companion for {alone_s}s"
+            f"  no companion for {alone_s}s{owner_str}"
             f"{self._pos_str(latest['x'], latest['y'])}{cam_a} [{region_str}]"
           )
           self._unattended_alerted.add(uid)
 
-      if allow_companion_inference and prior_companion and companion_uid and prior_companion != companion_uid:
+      if (allow_companion_inference and prior_companion and companion_uid and prior_companion != companion_uid
+          and self._abandoned_by.get(uid) != companion_uid):
         prior_companion_age = (
           now - prior_companion_started
           if prior_companion_started is not None
@@ -725,6 +734,8 @@ class Narrator:
         )
       if companion_uid is not None:
         self._prev_nearest[uid] = companion_uid
+        if self._abandoned_by.get(uid) == companion_uid:
+          del self._abandoned_by[uid]  # abandoner reclaimed it: no alert
 
     recent_candidates = {
       uid: (prev, new, lbl, lat, rs, prev_age)
@@ -799,7 +810,7 @@ class Narrator:
         continue
       stolen_key = (uid, new)
       if stolen_key not in self._luggage_stolen_alerted:
-        together = (
+        together = self._abandoned_by.get(uid) == prev or (
           prev in person_positions and new in person_positions
           and math.dist(person_positions[prev][:2], person_positions[new][:2]) < HANDOVER_TOGETHER_M
         )
@@ -971,6 +982,7 @@ class Narrator:
       self._last_companion.clear()
       self._last_companion_started.clear()
       self._abandonment_alerted.clear()
+      self._abandoned_by.clear()
       self._unattended_alerted.clear()
       self._recent_transitions.clear()
       logger.info("Narrator: loop reset")
