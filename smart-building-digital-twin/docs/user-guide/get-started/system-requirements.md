@@ -27,15 +27,21 @@ run the application.
 
 ## Hardware Requirements
 
-- Intel® GPU recommended; CPU fallback supported
-- For Panther Lake `xe` GPU telemetry, install `xpu-smi` on the host before running
-  `./setup.sh`
-- Host install example on Ubuntu OS version 24.04 when the Intel graphics repository
-  or PPA is already configured:
-  `sudo apt install xpu-smi`
-- If the GPU name still appears as a raw Peripheral Component Interconnect (PCI) ID
-  after host package install, refresh the host PCI ID database with:
-  `sudo update-pciids`
+- An Intel® GPU is recommended. If none is available, the application runs on the CPU.
+- On Panther Lake systems, install `xpu-smi` on the host before running `./setup.sh`
+  to enable `xe` GPU telemetry. On Ubuntu 24.04, with the Intel graphics repository or
+  PPA already configured, run:
+
+  ```bash
+  sudo apt install xpu-smi
+  ```
+
+- If the GPU name is still shown as a raw Peripheral Component Interconnect (PCI) ID
+  after installing `xpu-smi`, refresh the host PCI ID database:
+
+  ```bash
+  sudo update-pciids
+  ```
 
 ## Software Requirements
 
