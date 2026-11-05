@@ -13,7 +13,7 @@ run the application.
 
 | **Component**       | **Minimum Requirement** |
 |---------------------|-------------------------|
-| **Processor**       | Intel® Core™ Ultra Processors Series 1 and above |
+| **Processor**       | Intel® Core™ Ultra Processor (Series 1 and above) or Intel® Core™ Processor Series 3, with Intel® HD Graphics |
 | **GPU/Accelerator** | Integrated GPU (recommended; CPU fallback supported) |
 
 ## Hardware Requirements
