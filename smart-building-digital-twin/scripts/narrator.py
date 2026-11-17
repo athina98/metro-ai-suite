@@ -35,6 +35,7 @@ import datetime
 import json
 import logging
 import math
+import os
 import ssl
 import sys
 import threading
@@ -67,8 +68,9 @@ INERT_GHOST_FREEZE_M = 0.10  # meters — near-zero position spread with non-zer
 INERT_GHOST_SPEED_M = 0.12   # m/s — moving faster than this while spatially frozen is contradictory
 POSTURE_WINDOW      = 10     # last N bounding-box samples for majority vote
 FALL_MAX_SPEED_MS   = 0.35   # m/s — allow a small amount of motion-estimate jitter during fall confirmation
-FALL_CONFIRM_S      = 2.0    # seconds — fall-like posture must persist before alerting
-FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright", "compact", "wide"}
+FALL_CONFIRM_S      = 3.0    # seconds — fall-like posture must persist before alerting
+FALL_UPRIGHT_LOOKBACK_S = 5.0  # a real fall follows a recent upright posture
+FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright", "compact"}
 FALL_SUSTAIN_POSTURES = {"horizontal", "wide"}
 FALL_RECOVERY_POSTURES = {"upright", "partially upright", "compact"}
 GHOST_FREEZE_M      = 0.05   # meters — position spread below this = ghost track
@@ -94,6 +96,7 @@ DOOR_REGIONS: dict[str, int] = {
   "ConferenceDoor":  1,
 }
 
+DOOR_TRACK_MAX_AGE_S = 10.0  # seconds — stationary door detections flicker; bridge gaps so closed doors do not read as open
 SIDE_DOOR_BASELINE_SAMPLES = 20
 SIDE_DOOR_OPEN_OFFSET_M = 0.25
 
@@ -188,6 +191,7 @@ class Narrator:
     self._prev_nearest: dict[str, str] = {}
     # Previous posture per track uid (for CHANGE detection)
     self._prev_posture: dict[str, str] = {}
+    self._last_upright_at: dict[str, float] = {}
     # Track uid → wall-clock time when a fall-like episode first qualified
     self._fall_candidate_since: dict[str, float] = {}
     # Track uid → posture observed before the current fall-like episode began
@@ -238,6 +242,23 @@ class Narrator:
     self._stolen_candidate_emitted: set[tuple[str, str]] = set()
     # State listeners — called with a dict on every tick
     self._state_listeners: list = []
+    # Derive badge/face reads from the sensor file in every loop (replay has none in loop 1)
+    self._loop_start: float | None = None
+    try:
+      with open(os.environ.get("SENSOR_FILE", "/app/scenes/Showcase-sensors.json")) as f:
+        self._sensor_msgs = sorted(json.load(f)["messages"], key=lambda m: m["timestamp"])
+    except (OSError, ValueError, KeyError):
+      self._sensor_msgs = []
+
+  def _emulated_sensors(self, entries: list[dict]) -> dict:
+    """Badge/face values published (replay offset +1s) while the track stood at the readers."""
+    sensors = {}
+    for e in entries:
+      if {region_name(r) for r in e["regions"]} & {"badge-001", "faceid-001"}:
+        for m in self._sensor_msgs:
+          if abs(m["timestamp"] + 1 - (e["t"] - self._loop_start)) <= 1.5:
+            sensors[m["payload"]["id"]] = m["payload"]["value"]
+    return sensors
 
   # ── Helpers ──────────────────────────────────────────────────
 
@@ -497,6 +518,7 @@ class Narrator:
         ) < (
           inert_max_age_s
           if trk.get("category") in INERT_CATEGORIES
+          else DOOR_TRACK_MAX_AGE_S if trk.get("category") == "door"
           else LIVE_TRACK_MAX_AGE_S
         )
       }
@@ -529,7 +551,10 @@ class Narrator:
     for trk in doors.values():
       latest = list(trk["entries"])[-1]
       if any(region_name(r) == "SideDoorEntry" for r in latest.get("regions", [])):
-        side_door_positions.append((latest["x"], latest["y"]))
+        pos = (latest["x"], latest["y"])
+        # Ignore duplicate tracks of the same physical door
+        if all(math.hypot(pos[0] - p[0], pos[1] - p[1]) > 0.5 for p in side_door_positions):
+          side_door_positions.append(pos)
 
     if self._side_door_learning_enabled and self._side_door_baseline is None and side_door_positions:
       self._side_door_samples.extend(side_door_positions)
@@ -852,6 +877,8 @@ class Narrator:
     speed = person_state["speed"]
     prev_p = self._prev_posture.get(uid)
     self._prev_posture[uid] = posture
+    if posture in FALL_TRIGGER_PREVIOUS_POSTURES:
+      self._last_upright_at[uid] = now
 
     is_fall_candidate = (
       posture == "horizontal"
@@ -879,7 +906,8 @@ class Narrator:
       if (
         uid not in self._fall_alerted
         and candidate_age >= FALL_CONFIRM_S
-        and candidate_prev_p in FALL_TRIGGER_PREVIOUS_POSTURES
+        and candidate_prev_p != "horizontal"
+        and self._fall_candidate_since[uid] - self._last_upright_at.get(uid, -1e9) <= FALL_UPRIGHT_LOOKBACK_S
       ):
         detail = (
           f"posture changed {candidate_prev_p} → horizontal and persisted for {candidate_age:.1f}s"
@@ -914,6 +942,8 @@ class Narrator:
   def on_regulated(self, payload: dict):
     """Process regulated scene updates that require frame-rate cadence analytics."""
     self._sync_loop_state()
+    if self._loop_start is None and payload.get("objects"):
+      self._loop_start = _iso(payload.get("timestamp", ""))
     now = _now()
     relt = self._ts_str(payload.get("timestamp", ""))
     persons, inerts, _doors = self._current_live_tracks(now)
@@ -936,10 +966,12 @@ class Narrator:
         self._side_door_baseline = None
         self._side_door_state = "unknown"
         logger.info("Narrator: SideDoorEntry baseline learning enabled after initial loop")
+      self._loop_start = None
       self._companion_since.clear()
       self._stationary_since.clear()
       self._prev_nearest.clear()
       self._prev_posture.clear()
+      self._last_upright_at.clear()
       self._fall_candidate_since.clear()
       self._fall_candidate_prev_posture.clear()
       self._fall_alerted.clear()
@@ -1135,6 +1167,9 @@ class Narrator:
             entries = trk.get("entries")
             if entries:
               sensors = entries[-1].get("sensors", {})
+        if self._sensor_msgs and self._loop_start:
+          with self._cache._lock:
+            sensors = self._emulated_sensors(list(self._cache._tracks.get(obj.get("id", ""), {}).get("entries", [])))
         cred = self._cred_annot(sensors)
         self._process_badge_security(
           sensors,

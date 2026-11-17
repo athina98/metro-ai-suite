@@ -311,7 +311,10 @@ services:
     networks:
       scenescape:
     depends_on:
-      - mediaserver
+      mediaserver:
+        condition: service_started
+      showcase-cameras:
+        condition: service_healthy
     restart: always
     pids_limit: 1000
 
@@ -341,8 +344,6 @@ services:
       broker:
         condition: service_started
       mediaserver:
-        condition: service_started
-      showcase-streams:
         condition: service_started
       ntpserv:
         condition: service_started
@@ -438,6 +439,7 @@ services:
     volumes:
       - ./scripts:/app/scripts:ro
       - ./config:/app/config:ro
+      - ./scenes/${PRIMARY_SCENE}-sensors.json:/app/scenes/Showcase-sensors.json:ro
       - ./generated:/app/generated
     secrets:
       - source: root-cert
