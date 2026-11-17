@@ -246,7 +246,9 @@ class Narrator:
     self._loop_start: float | None = None
     try:
       with open(os.environ.get("SENSOR_FILE", "/app/scenes/Showcase-sensors.json")) as f:
-        self._sensor_msgs = sorted(json.load(f)["messages"], key=lambda m: m["timestamp"])
+        data = json.load(f)
+      self._sensor_msgs = sorted(data["messages"], key=lambda m: m["timestamp"])
+      self._video_len = data["total_duration"]
     except (OSError, ValueError, KeyError):
       self._sensor_msgs = []
 
@@ -944,6 +946,10 @@ class Narrator:
     self._sync_loop_state()
     if self._loop_start is None and payload.get("objects"):
       self._loop_start = _iso(payload.get("timestamp", ""))
+      if self._sensor_msgs and self._cache._loop_count == 0 and os.path.exists("/app/generated/streams-start"):
+        # Loop 0 joins the stream mid-video: locate the video origin from the streamer start time
+        with open("/app/generated/streams-start") as f:
+          self._loop_start -= (self._loop_start - float(f.read())) % self._video_len
     now = _now()
     relt = self._ts_str(payload.get("timestamp", ""))
     persons, inerts, _doors = self._current_live_tracks(now)

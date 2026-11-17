@@ -290,6 +290,8 @@ services:
   # Video Streams (primary scene)
   showcase-streams:
     image: linuxserver/ffmpeg:version-9.0-cli
+    # Record the start time so the narrator can locate the video position in loop 1
+    entrypoint: ["/bin/bash", "-c", "date +%s.%N > /sync/streams-start && exec /ffmpegwrapper.sh \"$$@\"", "_"]
     command: >
       -nostdin
       -re -stream_loop -1 -i /videos/cam-1.ts
@@ -308,6 +310,7 @@ services:
       -map 6:v -c copy -f rtsp -rtsp_transport tcp rtsp://mediaserver:8554/cam-7
     volumes:
       - ./datasets/${PRIMARY_DATASET}:/videos:ro
+      - ./generated:/sync
     networks:
       scenescape:
     depends_on:
