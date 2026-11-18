@@ -265,7 +265,6 @@ services:
       - cam-5
       - --timestamp-offset
       - "1"
-      - --start-on-first-frame
     volumes:
       - ./scenes/${PRIMARY_SCENE}-sensors.json:/app/sensors.json:ro
       - ./scripts/sensor_replay.py:/app/sensor_replay.py:ro

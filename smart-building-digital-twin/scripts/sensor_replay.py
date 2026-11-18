@@ -39,8 +39,7 @@ PUBLISH_INTERVAL_S = 0.02
 
 class SensorReplay:
   def __init__(self, sensor_file, broker_host, broker_port, ca_cert, tls_insecure,
-                 broker_auth, light_sensor_id, sync_camera, timestamp_offset=0.0,
-                 start_on_first_frame=False):
+                 broker_auth, light_sensor_id, sync_camera, timestamp_offset=0.0):
     with open(sensor_file) as f:
       data = json.load(f)
     self.messages = sorted(data['messages'], key=lambda x: x['timestamp'])
@@ -57,8 +56,7 @@ class SensorReplay:
     self.loop_start_wall = None
     self.scene_dark = True
     self.consec_empty = 0
-    # Streams start after this service is up, so the first live frame is the true video start
-    self._seen_dark_boundary = start_on_first_frame
+    self._seen_dark_boundary = False
     self.next_index = 0
     self.loop_count = 0
     self.messages_sent = 0
@@ -206,10 +204,6 @@ def main():
                         'Use this to compensate for the constant delta between the first '
                         'post-gap camera detection and the desired replay start point '
                         '(default: 0.0).')
-  p.add_argument('--start-on-first-frame', action='store_true',
-                   help='Treat the first live camera frame as a loop start instead of waiting '
-                        'for a dark loop boundary. Only valid when the video stream starts '
-                        'after this service.')
   p.add_argument('--verbose', action='store_true')
   args = p.parse_args()
 
@@ -226,7 +220,6 @@ def main():
     light_sensor_id=args.light_sensor_id,
     sync_camera=args.sync_camera,
     timestamp_offset=args.timestamp_offset,
-    start_on_first_frame=args.start_on_first_frame,
   ).run()
 
 
