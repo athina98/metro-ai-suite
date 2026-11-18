@@ -311,13 +311,9 @@ services:
       - ./datasets/${PRIMARY_DATASET}:/videos:ro
     networks:
       scenescape:
-    # Streams start only after the analytics stack is ready so loop 0 is observed from the first frame
+    # Streams start only after the narrator and sensor replay are ready so loop 0 is observed from the first frame
     depends_on:
       mediaserver:
-        condition: service_started
-      scene:
-        condition: service_started
-      analytics:
         condition: service_started
       scene-narrator:
         condition: service_healthy
