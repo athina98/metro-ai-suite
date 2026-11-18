@@ -436,6 +436,17 @@ const ENTRIES_KEY = 'sbd-narrator-entries';
 const STATE_KEY   = 'sbd-scene-state';
 const FILTER_KEY  = 'sbd-narrator-filter';
 const MAX_STORED  = 150;   // max entries kept; older images stripped first
+const BOOT_KEY    = 'sbd-server-boot';
+const SERVER_BOOT_ID = '__SERVER_BOOT_ID__';
+
+// Drop cached entries/state when the narrator container has restarted
+try {
+  if (localStorage.getItem(BOOT_KEY) !== SERVER_BOOT_ID) {
+    localStorage.removeItem(ENTRIES_KEY);
+    localStorage.removeItem(STATE_KEY);
+    localStorage.setItem(BOOT_KEY, SERVER_BOOT_ID);
+  }
+} catch (_) {}
 
 function saveEntries() {
   try {
