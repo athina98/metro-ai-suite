@@ -69,7 +69,7 @@ POSTURE_WINDOW      = 10     # last N bounding-box samples for majority vote
 FALL_MAX_SPEED_MS   = 0.35   # m/s — allow a small amount of motion-estimate jitter during fall confirmation
 FALL_CONFIRM_S      = 4.0    # seconds — fall-like posture must persist before alerting
 FALL_UPRIGHT_LOOKBACK_S = 5.0  # a real fall follows a recent upright posture
-FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright", "compact"}
+FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright", "compact", "wide"}
 FALL_SUSTAIN_POSTURES = {"horizontal", "wide"}
 FALL_RECOVERY_POSTURES = {"upright", "partially upright", "compact"}
 GHOST_FREEZE_M      = 0.05   # meters — position spread below this = ghost track
