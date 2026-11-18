@@ -63,10 +63,6 @@ INERT_TRACK_MAX_AGE_S = 0.75  # seconds — inert tracks should disappear quickl
 DISPLAY_INERT_TRACK_MAX_AGE_S = 3.0  # seconds — dashboard snapshots can coast luggage longer than security logic
 COMPANION_DIST_M    = 1.5    # meters — closer than this = companions
 STATIONARY_SPEED    = 0.08   # m/s — slower than this = stationary
-# Delay between the streamer container start and video t=0 (the first live frame, the
-# anchor later loops use). Without it loop 0 runs ahead of later loops and the replayed
-# badge/face sensors attach to the wrong track.
-STREAMS_START_OFFSET_S = float(os.environ.get("STREAMS_START_OFFSET_S", "4.6"))
 INERT_GHOST_RECENT_N = 5     # recent inert samples to inspect for sticky moving ghosts
 INERT_GHOST_FREEZE_M = 0.10  # meters — near-zero position spread with non-zero speed is untrusted
 INERT_GHOST_SPEED_M = 0.12   # m/s — moving faster than this while spatially frozen is contradictory
@@ -953,8 +949,7 @@ class Narrator:
       if self._sensor_msgs and self._cache._loop_count == 0 and os.path.exists("/app/generated/streams-start"):
         # Loop 0 joins the stream mid-video: locate the video origin from the streamer start time
         with open("/app/generated/streams-start") as f:
-          video_origin = float(f.read()) + STREAMS_START_OFFSET_S
-        self._loop_start -= (self._loop_start - video_origin) % self._video_len
+          self._loop_start -= (self._loop_start - float(f.read())) % self._video_len
     now = _now()
     relt = self._ts_str(payload.get("timestamp", ""))
     persons, inerts, _doors = self._current_live_tracks(now)
