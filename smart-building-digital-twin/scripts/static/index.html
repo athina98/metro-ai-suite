@@ -435,7 +435,6 @@ let nextEntryId  = 1;
 const ENTRIES_KEY = 'sbd-narrator-entries';
 const STATE_KEY   = 'sbd-scene-state';
 const FILTER_KEY  = 'sbd-narrator-filter';
-const BOOT_KEY    = 'sbd-boot-id';
 const MAX_STORED  = 150;   // max entries kept; older images stripped first
 
 function saveEntries() {
@@ -904,22 +903,9 @@ stateSrc.onmessage = (ev) => {
 // ── Narrator SSE ──────────────────────────────────────────────────────────────
 const src = new EventSource('/stream/narrator');
 
-src.onopen = async () => {
+src.onopen = () => {
   narratorDot.classList.add('connected');
   narratorStatus.textContent = 'Narrator: live';
-  // An already-open page that reconnects after a stack restart must drop the old run's data
-  try {
-    const { boot_id } = await (await fetch('/boot-id')).json();
-    const known = localStorage.getItem(BOOT_KEY);
-    localStorage.setItem(BOOT_KEY, boot_id);
-    if (known && known !== boot_id) {
-      btnClear.click();
-      localStorage.removeItem(STATE_KEY);
-      seenRegions.clear();
-      stateBody.innerHTML = '';
-      stateNoData.style.display = '';
-    }
-  } catch (_) {}
 };
 src.onerror = () => {
   narratorDot.classList.remove('connected');

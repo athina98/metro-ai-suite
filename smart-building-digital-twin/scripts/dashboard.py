@@ -25,7 +25,6 @@ import re
 import socket
 import sys
 import threading
-import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -207,15 +206,6 @@ async def _sse_stream(subs: list[asyncio.Queue]):
       subs.remove(q)
     except ValueError:
       pass
-
-
-# Changes on every dashboard start so the UI can drop alerts from a previous run
-_BOOT_ID = uuid.uuid4().hex
-
-
-@app.get("/boot-id")
-async def boot_id():
-  return {"boot_id": _BOOT_ID}
 
 
 @app.get("/stream/narrator")
