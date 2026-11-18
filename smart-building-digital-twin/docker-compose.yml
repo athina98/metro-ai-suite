@@ -311,12 +311,12 @@ services:
       - ./datasets/${PRIMARY_DATASET}:/videos:ro
     networks:
       scenescape:
-    # Streams start only after the narrator and sensor replay are started so loop 0 is observed from the first frame
+    # Streams start only after the narrator and sensor replay are ready so loop 0 is observed from the first frame
     depends_on:
       mediaserver:
         condition: service_started
       scene-narrator:
-        condition: service_started
+        condition: service_healthy
       sensor-replay-showcase:
         condition: service_started
     restart: always
@@ -452,6 +452,12 @@ services:
       sh -c "apt-get update -qq && apt-get install -y --no-install-recommends intel-gpu-tools &&
              pip install --no-cache-dir fastapi 'uvicorn[standard]' httpx paho-mqtt &&
              python3 /app/scripts/dashboard.py"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7000/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+      start_period: 30s
     restart: unless-stopped
     pids_limit: 1000
 
