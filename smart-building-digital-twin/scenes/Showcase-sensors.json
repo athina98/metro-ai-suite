@@ -63,8 +63,8 @@
     {
       "name": "person_fall",
       "start_time": 654.4,
-      "duration": 70.5,
-      "end_time": 724.9,
+      "duration": 75.1,
+      "end_time": 729.5,
       "has_sensor_data": false,
       "message_count": 0
     }
