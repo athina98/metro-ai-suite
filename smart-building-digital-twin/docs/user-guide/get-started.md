@@ -47,6 +47,9 @@ rerun `./setup.sh`.
 The analytics service learns the `SideDoorEntry` door-state baseline only after the first
 complete replay loop, preventing partial data from a mid-loop startup from affecting the baseline.
 
+The video streams start only after the analytics and narrator services are healthy, so the
+first loop is analyzed from the first video frame and matches later loops.
+
 ## After Setup
 
 After setup completes, you can access these runtime endpoints:

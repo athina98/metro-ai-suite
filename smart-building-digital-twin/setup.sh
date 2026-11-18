@@ -764,7 +764,7 @@ success "Media volume ready"
 info "Starting Scenescape services..."
 echo ""
 export SUPASS="$SUPASS_INPUT"
-docker compose up -d ntpserv pgserver broker mediaserver showcase-streams showcase-cameras web
+docker compose up -d ntpserv pgserver broker mediaserver showcase-cameras web
 
 # Wait for API readiness
 info "Waiting for Scenescape API to become ready..."
@@ -854,6 +854,10 @@ for scene in "${SCENES[@]}"; do
     scene_lower=$(echo "$scene" | tr '[:upper:]' '[:lower:]')
     start_sensor_replay "$scene" "$scene_lower"
 done
+
+# Start video streams last (compose waits for the narrator to be healthy) so loop 0 is fully observed
+info "Starting video streams once analytics is ready..."
+docker compose up -d --wait showcase-streams
 
 # Check service status
 info "Checking service health..."

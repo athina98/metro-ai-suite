@@ -265,6 +265,7 @@ services:
       - cam-5
       - --timestamp-offset
       - "1"
+      - --start-on-first-frame
     volumes:
       - ./scenes/${PRIMARY_SCENE}-sensors.json:/app/sensors.json:ro
       - ./scripts/sensor_replay.py:/app/sensor_replay.py:ro
@@ -310,8 +311,18 @@ services:
       - ./datasets/${PRIMARY_DATASET}:/videos:ro
     networks:
       scenescape:
+    # Streams start only after the analytics stack is ready so loop 0 is observed from the first frame
     depends_on:
-      - mediaserver
+      mediaserver:
+        condition: service_started
+      scene:
+        condition: service_started
+      analytics:
+        condition: service_started
+      scene-narrator:
+        condition: service_healthy
+      sensor-replay-showcase:
+        condition: service_started
     restart: always
     pids_limit: 1000
 
@@ -447,6 +458,12 @@ services:
       sh -c "apt-get update -qq && apt-get install -y --no-install-recommends intel-gpu-tools &&
              pip install --no-cache-dir fastapi 'uvicorn[standard]' httpx paho-mqtt &&
              python3 /app/scripts/dashboard.py"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7000/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+      start_period: 30s
     restart: unless-stopped
     pids_limit: 1000
 
