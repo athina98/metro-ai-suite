@@ -67,10 +67,11 @@ INERT_GHOST_FREEZE_M = 0.10  # meters — near-zero position spread with non-zer
 INERT_GHOST_SPEED_M = 0.12   # m/s — moving faster than this while spatially frozen is contradictory
 POSTURE_WINDOW      = 10     # last N bounding-box samples for majority vote
 FALL_MAX_SPEED_MS   = 0.35   # m/s — allow a small amount of motion-estimate jitter during fall confirmation
-FALL_CONFIRM_S      = 4.0    # seconds — fall-like posture must persist before alerting
+FALL_CONFIRM_S      = 3.0    # seconds — fall-like posture must persist before alerting
 FALL_TRIGGER_PREVIOUS_POSTURES = {"upright", "partially upright", "compact", "wide"}
 FALL_SUSTAIN_POSTURES = {"horizontal", "wide"}
 FALL_RECOVERY_POSTURES = {"upright", "partially upright", "compact"}
+FALL_LOOKBACK_S     = 10.0   # seconds — a recent upright-like posture still counts as the pre-fall posture
 GHOST_FREEZE_M      = 0.05   # meters — position spread below this = ghost track
 GHOST_RECENT_N      = 30     # number of recent entries to inspect for ghost detection
 GHOST_SPEED_THRESH  = 0.02   # m/s — reported speed below this = genuinely stationary, not a ghost
@@ -188,6 +189,8 @@ class Narrator:
     self._prev_nearest: dict[str, str] = {}
     # Previous posture per track uid (for CHANGE detection)
     self._prev_posture: dict[str, str] = {}
+    # Track uid → (posture, time) of the latest upright-like posture, for fast falls
+    self._last_upright: dict[str, tuple[str, float]] = {}
     # Track uid → wall-clock time when a fall-like episode first qualified
     self._fall_candidate_since: dict[str, float] = {}
     # Track uid → posture observed before the current fall-like episode began
@@ -852,6 +855,8 @@ class Narrator:
     speed = person_state["speed"]
     prev_p = self._prev_posture.get(uid)
     self._prev_posture[uid] = posture
+    if posture in FALL_RECOVERY_POSTURES:
+      self._last_upright[uid] = (posture, now)
 
     is_fall_candidate = (
       posture == "horizontal"
@@ -868,6 +873,11 @@ class Narrator:
       is_fall_candidate = True
     if is_fall_candidate:
       if uid not in self._fall_candidate_since:
+        # A fast fall exceeds the speed limit while already horizontal, so prev_p alone
+        # misses it; fall back to a recent upright-like posture
+        last_upright = self._last_upright.get(uid)
+        if prev_p not in FALL_TRIGGER_PREVIOUS_POSTURES and last_upright and now - last_upright[1] <= FALL_LOOKBACK_S:
+          prev_p = last_upright[0]
         self._fall_candidate_since[uid] = now
         self._fall_candidate_prev_posture[uid] = prev_p
         logger.info(
@@ -940,6 +950,7 @@ class Narrator:
       self._stationary_since.clear()
       self._prev_nearest.clear()
       self._prev_posture.clear()
+      self._last_upright.clear()
       self._fall_candidate_since.clear()
       self._fall_candidate_prev_posture.clear()
       self._fall_alerted.clear()
