@@ -196,10 +196,7 @@ SERVER_BOOT_ID = uuid.uuid4().hex
 @app.get("/")
 async def index():
   html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-  return HTMLResponse(
-    html.replace("__SERVER_BOOT_ID__", SERVER_BOOT_ID),
-    headers={"Cache-Control": "no-store"},
-  )
+  return HTMLResponse(html.replace("__SERVER_BOOT_ID__", SERVER_BOOT_ID))
 
 
 # ── SSE ───────────────────────────────────────────────────────────────────────────
