@@ -905,8 +905,8 @@
     ]
   },
   "time": {
-    "from": "2026-06-24T07:02:05.505Z",
-    "to": "2026-06-25T07:02:05.505Z"
+    "from": "now-5m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
