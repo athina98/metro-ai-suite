@@ -722,7 +722,7 @@
       "type": "table"
     }
   ],
-  "refresh": "5m",
+  "refresh": "5s",
   "schemaVersion": 41,
   "tags": [],
   "templating": {
